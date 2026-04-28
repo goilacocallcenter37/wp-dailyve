@@ -1,0 +1,171 @@
+.bg-gray {
+    background: silver !important
+}
+
+.btn-vxr-lg {
+    color: black !important;
+    background-image: radial-gradient(circle at 0 50%, rgba(255, 255, 224, 0) 0.4em, #f8c300 0.5em), radial-gradient(circle at 100% 50%, rgba(255, 255, 224, 0) 0.4em, white 0.5em) !important;
+}
+
+
+div.body-outer-wrapper.gdlr-boxed-style {
+    max-width: 95% !important;
+    margin: 0px auto;
+    position: relative;
+}
+
+.select2-selection--single .select2-selection__rendered {
+    color: #444;
+    line-height: 40px !important;
+}
+
+.select2-container .select2-selection--single {
+    height: 40px !important;
+}
+
+/*the container must be positioned relative:*/
+.autocomplete {
+    position: relative;
+    display: inline-block;
+}
+
+input {
+    border: 1px solid transparent;
+    background-color: #f1f1f1;
+    padding: 10px;
+    font-size: 16px;
+}
+
+input[type="text"] {
+    background-color: #f1f1f1;
+    width: 100%;
+}
+
+input[type="submit"] {
+    background-color: DodgerBlue;
+    color: #fff;
+    cursor: pointer;
+}
+
+.autocomplete-items-from {
+    position: absolute;
+    border: 1px solid #d4d4d4;
+    z-index: 99;
+    border-bottom: none;
+    /*border-top: none;*/
+    background-color: white;
+    /*position the autocomplete items to be the same width as the container:*/
+    box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px, rgba(60, 64, 67, 0.15) 0px 1px 3px 1px;
+    top: 100%;
+    left: 0;
+}
+
+.autocomplete-items-to {
+    position: absolute;
+    border: 1px solid #d4d4d4;
+    z-index: 99;
+    border-bottom: none;
+    left: 0;
+    /*border-top: none;*/
+    box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px, rgba(60, 64, 67, 0.15) 0px 1px 3px 1px;
+    background-color: white;
+    /*position the autocomplete items to be the same width as the container:*/
+    top: 100%;
+}
+
+.ph2 {
+    padding-left: .5rem;
+    padding-right: .5rem;
+    color: #000 !important;
+}
+
+.autocomplete-items-from div div {
+    padding: 10px;
+    cursor: pointer;
+    background-color: #fff;
+    color: #000;
+    border-bottom: 1px solid #d4d4d4;
+}
+
+.autocomplete-items-to div div {
+    padding: 10px;
+    cursor: pointer;
+    background-color: #fff;
+    color: #000;
+    border-bottom: 1px solid #d4d4d4;
+}
+
+/*when hovering an item:*/
+.autocomplete-items-from div div:hover {
+    color: #000;
+    background-color: #e9e9e9;
+}
+
+.autocomplete-items-to div div:hover {
+    color: #000;
+    background-color: #e9e9e9;
+}
+
+/*when navigating through the items using the arrow keys:*/
+.autocomplete-active {
+    background-color: #a1daff !important;
+    color: #ffffff;
+}
+
+@media screen and (min-width: 60em) {
+    .btn-switch-route {
+        position: absolute;
+        top: 2px;
+        right: -47px;
+        font-size: 25px;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        text-align: center;
+        color: #575757;
+        z-index: 9;
+        box-shadow: 0 3px 10px #dcdcdc;
+        background: #fff;
+        background-image: url("https://static.vexere.com/fe/widget2.1/images/icon-switch.png");
+        background-repeat: no-repeat;
+        background-position-x: 5px;
+        background-position-y: 5px;
+        cursor: pointer;
+        transform: rotate(90deg);
+        -moz-transform: rotate(90deg);
+        -webkit-transform: rotate(90deg);
+        -ms-transform: rotate(90deg);
+        -o-transform: rotate(90deg);
+    }
+}
+
+input:focus {
+    outline: none;
+}
+
+@media screen and (max-width: 60em) and (min-width: 30em) {
+    .btn-switch-route {
+        position: absolute;
+        top: 2px;
+        right: -15px;
+        font-size: 25px;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        text-align: center;
+        color: #575757;
+        z-index: 9;
+        box-shadow: 0 3px 10px #dcdcdc;
+        background: #fff;
+        background-image: url("https://static.vexere.com/fe/widget2.1/images/icon-switch.png");
+        background-repeat: no-repeat;
+        background-position-x: 5px;
+        background-position-y: 5px;
+        cursor: pointer;
+        transform: rotate(90deg);
+        -moz-transform: rotate(90deg);
+        -webkit-transform: rotate(90deg);
+        -ms-transform: rotate(90deg);
+        -o-transform: rotate(90deg);
+    }
+}

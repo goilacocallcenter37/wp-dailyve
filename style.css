@@ -1,0 +1,12 @@
+/*
+Theme Name: Dailyve Theme
+Description: Hệ thống đại lý vé toàn quốc
+Author: Nghia Le
+Template: flatsome
+Version: 1.0
+*/
+
+@import url('./assets/css/style-child.css');
+@import url('./assets/css/style-tour.css');
+/* Duy CSS */
+@import url('./assets/css/bmd.css');
