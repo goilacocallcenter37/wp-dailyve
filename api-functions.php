@@ -4678,6 +4678,68 @@ function handle_choose_trip_ajax_booking_2()
 add_action('wp_ajax_choose_trip_ajax_booking_2', 'handle_choose_trip_ajax_booking_2');
 add_action('wp_ajax_nopriv_choose_trip_ajax_booking_2', 'handle_choose_trip_ajax_booking_2');
 
+function generate_dailyve_review_html($items)
+{
+    $output = '';
+    foreach ($items as $item) {
+        $dateString = isset($item['trip_date']) ? date('d-m-Y', strtotime($item['trip_date'])) : "";
+        $widthStart = ((int) $item['rating'] / 5) * 100;
+        $output .= '<div class="rating-tab__comments-list__item">
+                        <div class="rating-tab__comments-list__item-personal__info">';
+        if (!empty($item['social_avatar'])) {
+            $output .= '<div class="rating-tab__comments-list__item-personal_social-avatar"><img src="' . $item['social_avatar'] . '" alt="' . $item['name'] . '"></div>';
+        } else {
+            $output .= '<div class="rating-tab__comments-list__item-personal__info-avatar">' . getInitialsNameToAvatar($item['name']) . '</div>';
+        }
+        $output .= '<div class="rating-tab__comments-list__item-personal__info-name">'
+            . $item['name'] .
+            '<div class="rating-tab__comments-list__item-personal__info-star"> 
+                                    <div class="ratings">
+                                        <div class="empty-stars" style="font-size: 12pt;"></div>
+                                        <div class="full-stars" style="width: ' . $widthStart . '%; font-size: 12pt;"></div>
+                                    </div>
+                                 </div>
+                            </div>
+                        </div>';
+        $output .= '<div class="rating-tab__comments-list__item-content">' . $item['comment'] . '</div>';
+        if (isset($item['images']) && count($item['images']) > 0 && 1 > 2) {
+            $output .= '<div class="rating-tab__comments-list__item-gallery">';
+            foreach ($item['images'] as $key => $value) {
+                $output .= '<div class="rating-tab__comments-list__item-gallery__img"> 
+                                                <a data-fancybox="" href="' . $value . '" rel="nofollow">
+                                                    <img
+                                                        data-lazyloaded="1"
+                                                        src="' . $value . '"
+                                                        class="attachment-large size-large entered litespeed-loaded" alt="gallery">
+                                                </a>
+                                            </div>';
+            }
+            $output .= '</div>';
+        }
+        if (!empty($dateString)) {
+            $output .= '<div class="rating-tab__comments-list__item-depart-date">
+                            <p>Đi ngày ' . $dateString . '</p>
+                            <div><i class="fas fa-check-circle"></i></div>
+                            <p class="verified">Đã mua vé</p>
+                    </div>';
+        }
+        if (isset($item['replies']) && 1 > 2) {
+            $output .= '<div class="rating-tab__comments-list__comment-reply">';
+            foreach ($item['replies'] as $reply) {
+                $output .= '<div class="item-comment-reply">
+                                <div class="comment-title"><p class="comment-reply-title">Phản hồi của nhà xe</p></div>
+                                <div class="comment-content">
+                                    <p class="comment-reply-content">' . $reply['content'] . '</p>
+                                </div>
+                            </div>';
+            }
+            $output .= '</div>';
+        }
+        $output .= '</div>';
+    }
+    return $output;
+}
+
 function handle_get_review_ajax_company()
 {
 
@@ -4692,66 +4754,11 @@ function handle_get_review_ajax_company()
         wp_send_json_error($response->get_error_message());
     } else {
         $data = json_decode(wp_remote_retrieve_body($response), true);
-        if (!empty($data) && is_array($data)) {
-            foreach ($data['data']['items'] as $item) {
-                $dateString = isset($item['trip_date']) ? date('d-m-Y', strtotime($item['trip_date'])) : "";
-                $widthStart = ((int) $item['rating'] / 5) * 100;
-                $output .= '<div class="rating-tab__comments-list__item">
-                                <div class="rating-tab__comments-list__item-personal__info">';
-                if (!empty($item['social_avatar'])) {
-                    $output .= '<div class="rating-tab__comments-list__item-personal_social-avatar"><img src="' . $item['social_avatar'] . '" alt="' . $item['name'] . '"></div>';
-                } else {
-                    $output .= '<div class="rating-tab__comments-list__item-personal__info-avatar">' . getInitialsNameToAvatar($item['name']) . '</div>';
-                }
-                $output .= '<div class="rating-tab__comments-list__item-personal__info-name">'
-                    . $item['name'] .
-                    '<div class="rating-tab__comments-list__item-personal__info-star"> 
-                                            <div class="ratings">
-                                                <div class="empty-stars" style="font-size: 12pt;"></div>
-                                                <div class="full-stars" style="width: ' . $widthStart . '%; font-size: 12pt;"></div>
-                                            </div>
-                                         </div>
-                                    </div>
-                                </div>';
-                $output .= '<div class="rating-tab__comments-list__item-content">' . $item['comment'] . '</div>';
-                if (isset($item['images']) && count($item['images']) > 0 && 1 > 2) {
-                    $output .= '<div class="rating-tab__comments-list__item-gallery">';
-                    foreach ($item['images'] as $key => $value) {
-                        $output .= '<div class="rating-tab__comments-list__item-gallery__img"> 
-                                                        <a data-fancybox="" href="' . $value . '" rel="nofollow">
-                                                            <img
-                                                                data-lazyloaded="1"
-                                                                src="' . $value . '"
-                                                                class="attachment-large size-large entered litespeed-loaded" alt="gallery">
-                                                        </a>
-                                                    </div>';
-                    }
-                    $output .= '</div>';
-                }
-                if (!empty($dateString)) {
-                    $output .= '<div class="rating-tab__comments-list__item-depart-date">
-                                    <p>Đi ngày ' . $dateString . '</p>
-                                    <div><i class="fas fa-check-circle"></i></div>
-                                    <p class="verified">Đã mua vé</p>
-                            </div>';
-                }
-                if (isset($item['replies']) && 1 > 2) {
-                    $output .= '<div class="rating-tab__comments-list__comment-reply">';
-                    foreach ($item['replies'] as $reply) {
-                        $output .= '<div class="item-comment-reply">
-                                        <div class="comment-title"><p class="comment-reply-title">Phản hồi của nhà xe</p></div>
-                                        <div class="comment-content">
-                                            <p class="comment-reply-content">' . $reply['content'] . '</p>
-                                        </div>
-                                    </div>';
-                    }
-                    $output .= '</div>';
-                }
-                $output .= '</div>';
-            }
+        if (!empty($data) && is_array($data) && isset($data['data']['items'])) {
+            $output = generate_dailyve_review_html($data['data']['items']);
             $response = [
                 'html' => $output,
-                'total' => $data['data']['total_pages'],
+                'total' => $data['data']['total_pages'] ?? 1,
             ];
             echo json_encode($response);
         }
@@ -4760,6 +4767,67 @@ function handle_get_review_ajax_company()
 }
 add_action('wp_ajax_get_review_ajax_company', 'handle_get_review_ajax_company');
 add_action('wp_ajax_nopriv_get_review_ajax_company', 'handle_get_review_ajax_company');
+
+function dailyve_sync_company_reviews_cron()
+{
+    $args = [
+        'post_type' => 'page',
+        'post_parent' => 15764,
+        'posts_per_page' => -1,
+        'fields' => 'ids'
+    ];
+    $company_ids = get_posts($args);
+
+    foreach ($company_ids as $post_id) {
+        $vexere_company_id = get_post_meta($post_id, 'company_id', true);
+        if (!$vexere_company_id) continue;
+
+        $url = "companies/vexere/$vexere_company_id/reviews?page=1&limit=20";
+        $response = call_api_v2($url, 'GET');
+
+        if (!is_wp_error($response)) {
+            $data = json_decode(wp_remote_retrieve_body($response), true);
+            if (!empty($data) && is_array($data) && isset($data['data'])) {
+                if (isset($data['data']['average_rating'])) {
+                    update_post_meta($post_id, 'rating', round((float)$data['data']['average_rating'], 1));
+                }
+                if (isset($data['data']['total'])) {
+                    update_post_meta($post_id, 'reviews', (int)$data['data']['total']);
+                }
+
+                if (isset($data['data']['items']) && is_array($data['data']['items'])) {
+                    $html = generate_dailyve_review_html($data['data']['items']);
+                    set_transient('dailyve_reviews_html_' . $vexere_company_id, $html, 2 * DAY_IN_SECONDS);
+                }
+            }
+        }
+
+        // Sync Rating Details
+        $url_rating = "companies/vexere/$vexere_company_id/rating";
+        $response_rating = call_api_v2($url_rating, 'GET');
+
+        if (!is_wp_error($response_rating)) {
+            $data_rating = json_decode(wp_remote_retrieve_body($response_rating), true);
+            if (!empty($data_rating) && is_array($data_rating) && isset($data_rating['data'])) {
+                // Save full rating data (categories and overall)
+                update_post_meta($post_id, 'vexere_rating_data', $data_rating['data']);
+
+                // Also update summary fields for quick access if available in the rating response
+                if (isset($data_rating['data']['overall']['rv_main_value'])) {
+                    update_post_meta($post_id, 'rating', round((float)$data_rating['data']['overall']['rv_main_value'], 1));
+                }
+                if (isset($data_rating['data']['overall']['total_reviews'])) {
+                    update_post_meta($post_id, 'reviews', (int)$data_rating['data']['overall']['total_reviews']);
+                }
+            }
+        }
+    }
+}
+
+if (!wp_next_scheduled('dailyve_sync_reviews_event')) {
+    wp_schedule_event(time(), 'daily', 'dailyve_sync_reviews_event');
+}
+add_action('dailyve_sync_reviews_event', 'dailyve_sync_company_reviews_cron');
 function handle_get_info_ajax_company()
 {
     $partnerId  = isset($_POST['partnerId']) ? sanitize_text_field($_POST['partnerId']) : null;
@@ -5472,7 +5540,7 @@ function handle_filter_route_trip()
         wp_send_json_error($response->get_error_message());
     } else {
         $data = json_decode(wp_remote_retrieve_body($response), true); ?>
-        <?php if (isset($data['items']) && is_array($data['items']) && count($data['items']) > 0) { 
+        <?php if (isset($data['items']) && is_array($data['items']) && count($data['items']) > 0) {
             $company_data_map = ams_get_bulk_company_data($data['items']);
         ?>
             <?php if ($loadMore == 0) {  ?>

@@ -437,6 +437,36 @@ foreach ($company_pages as $page) {
       width: 50%;
     }
   }
+
+  .dailyve-reviews-pagination {
+    text-align: center;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #ebebeb;
+  }
+
+  .dailyve-load-more-reviews {
+    background-color: transparent;
+    border: 1px solid var(--primary-color, #0064d2);
+    color: var(--primary-color, #0064d2);
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 0;
+    text-transform: none;
+  }
+
+  .dailyve-load-more-reviews:hover {
+    background-color: var(--primary-color, #0064d2);
+    color: #fff;
+  }
+
+  .dailyve-load-more-reviews.is-loading {
+    opacity: 0.6;
+    pointer-events: none;
+  }
 </style>
 
 <div class="dailyve-company-ui">
@@ -466,8 +496,9 @@ foreach ($company_pages as $page) {
       while ($company_pages_query->have_posts()) : $company_pages_query->the_post();
         $p_id = get_the_ID();
         $company_name = get_the_title();
-        $rating = get_post_meta($p_id, 'rating', true) ?: number_format(mt_rand(40, 50) / 10, 1);
-        $reviews = get_post_meta($p_id, 'reviews', true) ?: mt_rand(500, 3000);
+        $company_phone = get_post_meta($p_id, 'company_phone', true) ?? '1900 0155';
+        $rating = get_post_meta($p_id, 'rating', true) ?: 0;
+        $reviews = get_post_meta($p_id, 'reviews', true) ?: 0;
         $vehicle_data = function_exists('get_field') ? get_field('vehicle_type', $p_id) : get_post_meta($p_id, 'vehicle_type', true);
         if (is_array($vehicle_data)) {
           // Xử lý nếu ACF trả về mảng (Labels hoặc Objects)
@@ -568,6 +599,24 @@ foreach ($company_pages as $page) {
           : ($dest_city ?: 'Đang cập nhật');
     ?>
         <article class="dailyve-company-card-v2" data-company-card data-company-id="<?= esc_attr($vexere_company_id); ?>">
+          <?php if ($rating > 0 && $reviews > 0) : ?>
+            <script type="application/ld+json">
+              {
+                "@context": "https://schema.org",
+                "@type": "LocalBusiness",
+                "name": "<?= esc_js($company_name) ?>",
+                "image": "<?= esc_js($image) ?>",
+                "url": "<?= esc_js(get_permalink($p_id)) ?>",
+                "telephone": "<?= esc_js($company_phone) ?>",
+                "aggregateRating": {
+                  "@type": "AggregateRating",
+                  "ratingValue": "<?= esc_js($rating) ?>",
+                  "bestRating": "5",
+                  "ratingCount": "<?= esc_js($reviews) ?>"
+                }
+              }
+            </script>
+          <?php endif; ?>
           <div class="dailyve-company-card-v2__summary">
             <div class="dailyve-company-card-v2__left">
               <div class="dailyve-company-card-v2__image-wrap">
@@ -734,10 +783,41 @@ foreach ($company_pages as $page) {
 
                 <div class="dailyve-company-card-v2__tab-panel" data-tab-panel="reviews-<?= esc_attr($index); ?>">
                   <div class="dailyve-reviews-ajax-wrapper">
-                    <div class="dailyve-info-ajax-container rating-tab__cats" data-loaded="false"></div>
-                    <div class="dailyve-reviews-ajax-container" data-loaded="false">
-                      <div class="dailyve-loading">Đang tải đánh giá...</div>
+                    <div class="dailyve-info-ajax-container rating-tab__cats" data-loaded="true">
+                      <?php
+                      $rating_data = get_post_meta($p_id, 'vexere_rating_data', true);
+                      if (!empty($rating_data) && isset($rating_data['rating'])) :
+                        foreach ($rating_data['rating'] as $item) :
+                          $cat_width = ((float) $item['rv_main_value'] / 5) * 100;
+                      ?>
+                          <div class="rating-tab__cat">
+                            <div class="rating-tab__cat-name"><?= esc_html($item['label']) ?></div>
+                            <div class="rating-tab__progress__wrap">
+                              <div class="rating-tab__progress__bar">
+                                <div style="width: <?= $cat_width ?>%;" class="rating-tab__progress__bar-fill"></div>
+                              </div>
+                              <div class="rating-tab__progress__txt"><?= esc_html($item['rv_main_value']) ?></div>
+                            </div>
+                          </div>
+                      <?php
+                        endforeach;
+                      else:
+                        echo '<div class="dailyve-loading">Đang cập nhật đánh giá chi tiết...</div>';
+                      endif;
+                      ?>
                     </div>
+                    <?php
+                    $review_html_cache = get_transient('dailyve_reviews_html_' . $vexere_company_id);
+                    $total_pages = ceil((int)$reviews / 10);
+                    ?>
+                    <div class="dailyve-reviews-ajax-container" data-loaded="<?= $review_html_cache ? 'true' : 'false' ?>">
+                      <?= $review_html_cache ? $review_html_cache : '<div class="dailyve-loading">Đang tải đánh giá...</div>' ?>
+                    </div>
+                    <?php if ($total_pages > 1) : ?>
+                      <div class="dailyve-reviews-pagination">
+                        <button type="button" class="dailyve-load-more-reviews" data-current-page="1" data-total-pages="<?= esc_attr($total_pages); ?>">Xem thêm</button>
+                      </div>
+                    <?php endif; ?>
                   </div>
                 </div>
               </div>
@@ -923,6 +1003,57 @@ foreach ($company_pages as $page) {
         });
       });
     });
+
+    // Handle "Load More Reviews" button
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.classList.contains('dailyve-load-more-reviews')) {
+        var btn = e.target;
+        var currentPage = parseInt(btn.getAttribute('data-current-page'));
+        var totalPages = parseInt(btn.getAttribute('data-total-pages'));
+        var card = btn.closest('.dailyve-company-card-v2');
+        var companyId = card ? card.getAttribute('data-company-id') : null;
+        var container = card ? card.querySelector('.dailyve-reviews-ajax-container') : null;
+
+        if (companyId && container && currentPage < totalPages) {
+          var nextPage = currentPage + 1;
+          btn.classList.add('is-loading');
+          btn.innerText = 'Đang tải...';
+
+          jQuery.ajax({
+            url: flatsomeVars.ajaxurl,
+            type: 'GET',
+            data: {
+              action: 'get_review_ajax_company',
+              companyId: companyId,
+              page: nextPage
+            },
+            success: function(resp) {
+              try {
+                var data = JSON.parse(resp);
+                if (data.html) {
+                  container.insertAdjacentHTML('beforeend', data.html);
+                  btn.setAttribute('data-current-page', nextPage);
+                  if (nextPage >= totalPages) {
+                    btn.parentElement.style.display = 'none';
+                  } else {
+                    btn.innerText = 'Xem thêm đánh giá';
+                  }
+                }
+              } catch (err) {
+                console.error(err);
+                btn.innerText = 'Xem thêm đánh giá';
+              }
+              btn.classList.remove('is-loading');
+            },
+            error: function() {
+              btn.innerText = 'Lỗi tải trang. Thử lại?';
+              btn.classList.remove('is-loading');
+            }
+          });
+        }
+      }
+    });
+
   });
 </script>
 
