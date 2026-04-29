@@ -733,28 +733,58 @@ foreach ($company_pages as $page) {
 
                 <div class="dailyve-company-card-v2__tab-panel" data-tab-panel="utilities-<?= esc_attr($index); ?>">
                   <div class="dailyve-utilities-mock">
-                    <div class="dailyve-utilities-mock__featured">
-                      <div class="dailyve-utilities-mock__item">
-                        <div class="dailyve-utilities-mock__title" style="background-image: url('<?= esc_url(home_url('/wp-content/uploads/assets/images/u-dayantoan.png')); ?>');">Dây đai an toàn</div>
-                        <div class="dailyve-utilities-mock__desc">Xe có trang bị dây đai an toàn cho hành khách tại vị trí ngồi phù hợp.</div>
+                    <?php
+                    $utilities = get_the_terms($p_id, 'bus_utility');
+                    if ($utilities && !is_wp_error($utilities)) :
+                      $featured_utilities = [];
+                      $other_utilities = [];
+
+                      foreach ($utilities as $utility) {
+                        $icon = get_field('utility_icon', 'bus_utility_' . $utility->term_id);
+                        $desc = get_field('utility_description', 'bus_utility_' . $utility->term_id);
+
+                        if (!empty($desc)) {
+                          $featured_utilities[] = [
+                            'name' => $utility->name,
+                            'icon' => $icon,
+                            'desc' => $desc
+                          ];
+                        } else {
+                          $other_utilities[] = [
+                            'name' => $utility->name,
+                            'icon' => $icon
+                          ];
+                        }
+                      }
+                    ?>
+                      <?php if (!empty($featured_utilities)) : ?>
+                        <div class="dailyve-utilities-mock__featured">
+                          <?php foreach ($featured_utilities as $f_item) : ?>
+                            <div class="dailyve-utilities-mock__item">
+                              <div class="dailyve-utilities-mock__title" style="background-image: url('<?= esc_url($f_item['icon']); ?>');"><?= esc_html($f_item['name']); ?></div>
+                              <div class="dailyve-utilities-mock__desc"><?= esc_html($f_item['desc']); ?></div>
+                            </div>
+                          <?php endforeach; ?>
+                        </div>
+                      <?php endif; ?>
+
+                      <?php if (!empty($other_utilities)) : ?>
+                        <div class="dailyve-utilities-mock__grid">
+                          <?php foreach ($other_utilities as $o_item) : ?>
+                            <span>
+                              <?php if ($o_item['icon']) : ?>
+                                <img src="<?= esc_url($o_item['icon']); ?>" alt="<?= esc_attr($o_item['name']); ?>">
+                              <?php endif; ?>
+                              <?= esc_html($o_item['name']); ?>
+                            </span>
+                          <?php endforeach; ?>
+                        </div>
+                      <?php endif; ?>
+                    <?php else : ?>
+                      <div class="dailyve-no-data-msg">
+                        <p>Thông tin tiện ích đang được cập nhật...</p>
                       </div>
-                      <div class="dailyve-utilities-mock__item">
-                        <div class="dailyve-utilities-mock__title" style="background-image: url('<?= esc_url(home_url('/wp-content/uploads/assets/images/u-guikemxemay.png')); ?>');">Xe trung chuyển</div>
-                        <div class="dailyve-utilities-mock__desc">Hỗ trợ đưa đón khách tại một số khu vực trung tâm và điểm hẹn có sẵn.</div>
-                      </div>
-                      <div class="dailyve-utilities-mock__item">
-                        <div class="dailyve-utilities-mock__title" style="background-image: url('<?= esc_url(home_url('/wp-content/uploads/assets/images/u-nuocuong.png')); ?>');">Nước uống</div>
-                        <div class="dailyve-utilities-mock__desc">Phục vụ nước uống cơ bản trong suốt hành trình.</div>
-                      </div>
-                    </div>
-                    <div class="dailyve-utilities-mock__grid">
-                      <span><img src="<?= esc_url(home_url('/wp-content/uploads/assets/images/u-sacdienthoai.png')); ?>" alt="Sạc điện thoại"> Sạc điện thoại</span>
-                      <span><img src="<?= esc_url(home_url('/wp-content/uploads/assets/images/i-remcua.png')); ?>" alt="Rèm cửa"> Rèm cửa</span>
-                      <span><img src="<?= esc_url(home_url('/wp-content/uploads/assets/images/u-chandap.png')); ?>" alt="Chăn đắp"> Chăn đắp</span>
-                      <span><img src="<?= esc_url(home_url('/wp-content/uploads/assets/images/u-wifi.png')); ?>" alt="Wifi"> Wifi</span>
-                      <span><img src="<?= esc_url(home_url('/wp-content/uploads/assets/images/u-dieuhoa.png')); ?>" alt="Điều hòa"> Điều hòa</span>
-                      <span><img src="<?= esc_url(home_url('/wp-content/uploads/assets/images/u-khanlanh.png')); ?>" alt="Khăn lạnh"> Khăn lạnh</span>
-                    </div>
+                    <?php endif; ?>
                   </div>
                 </div>
 
