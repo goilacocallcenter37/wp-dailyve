@@ -161,76 +161,9 @@ function chay_anh_bao_chi()
 }
 add_shortcode('slide_bao_chi', 'chay_anh_bao_chi');
 
-// Register Bus Utility Taxonomy
-add_action('init', 'dailyve_register_bus_utility_taxonomy');
-function dailyve_register_bus_utility_taxonomy() {
-    $labels = array(
-        'name'              => 'Tiện ích nhà xe',
-        'singular_name'     => 'Tiện ích',
-        'search_items'      => 'Tìm tiện ích',
-        'all_items'         => 'Tất cả tiện ích',
-        'parent_item'       => 'Tiện ích cha',
-        'parent_item_colon' => 'Tiện ích cha:',
-        'edit_item'         => 'Sửa tiện ích',
-        'update_item'       => 'Cập nhật tiện ích',
-        'add_new_item'      => 'Thêm tiện ích mới',
-        'new_item_name'     => 'Tên tiện ích mới',
-        'menu_name'         => 'Tiện ích nhà xe',
-    );
-
-    $args = array(
-        'hierarchical'      => true,
-        'labels'            => $labels,
-        'public'            => true,
-        'show_ui'           => true,
-        'show_admin_column' => true,
-        'show_in_rest'      => true,
-        'query_var'         => true,
-        'rewrite'           => array('slug' => 'bus-utility'),
-    );
-
-    register_taxonomy('bus_utility', array('page'), $args);
-}
-
-// Add ACF Fields for Bus Utility Taxonomy
-add_action('acf/init', 'dailyve_register_bus_utility_acf_fields');
-function dailyve_register_bus_utility_acf_fields() {
-    if (!function_exists('acf_add_local_field_group')) {
-        return;
-    }
-
-    acf_add_local_field_group(array(
-        'key' => 'group_bus_utility_fields',
-        'title' => 'Cài đặt Tiện ích',
-        'fields' => array(
-            array(
-                'key' => 'field_utility_icon',
-                'label' => 'Icon tiện ích',
-                'name' => 'utility_icon',
-                'type' => 'image',
-                'return_format' => 'url',
-                'preview_size' => 'thumbnail',
-                'library' => 'all',
-            ),
-            array(
-                'key' => 'field_utility_description',
-                'label' => 'Mô tả ngắn',
-                'name' => 'utility_description',
-                'type' => 'textarea',
-                'rows' => 2,
-            ),
-        ),
-        'location' => array(
-            array(
-                array(
-                    'param' => 'taxonomy',
-                    'operator' => '==',
-                    'value' => 'bus_utility',
-                ),
-            ),
-        ),
-    ));
-}
+// Include refactored modules
+require_once get_stylesheet_directory() . '/inc/taxonomies.php';
+require_once get_stylesheet_directory() . '/inc/acf-fields.php';
 
 // Add custom Theme Functions here
 add_action('wp_enqueue_scripts', 'custom_scripts', 10);
