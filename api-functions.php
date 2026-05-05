@@ -380,16 +380,16 @@ function get_ticket_by_phone_number($request)
             $post_meta = get_post_meta($post_id);
 
             // Get coupon info from ticket_coupon table
-            // global $wpdb;
-            // $coupon_info = $wpdb->get_row(
-            //     $wpdb->prepare(
-            //         "SELECT * 
-            //          FROM {$wpdb->prefix}ticket_coupon 
-            //          WHERE ticket_id = %d AND phone = %s",
-            //         $post_id,
-            //         $phone_number
-            //     )
-            // );
+            global $wpdb;
+            $coupon_info = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT * 
+                     FROM {$wpdb->prefix}ticket_coupon 
+                     WHERE ticket_id = %d AND phone = %s",
+                    $post_id,
+                    $phone_number
+                )
+            );
 
             $tickets[] = [
                 'id' => $post_id,
@@ -421,11 +421,11 @@ function get_ticket_by_phone_number($request)
                 'note' => $post_meta['note'][0] ?? '',
                 'route_name' => $post_meta['routeName'][0] ?? '',
                 'expired_time' => $post_meta['expired_time'][0] ?? '',
-                // 'coupon' => [
-                //     'id' => $coupon_info ? $coupon_info->id : null,
-                //     'code' => $coupon_info ? $coupon_info->code : null,
-                //     'coupon_id' => $coupon_info ? $coupon_info->coupon_id : null,
-                // ]
+                'coupon' => [
+                    'id' => $coupon_info ? $coupon_info->id : null,
+                    'code' => $coupon_info ? $coupon_info->code : null,
+                    'coupon_id' => $coupon_info ? $coupon_info->coupon_id : null,
+                ]
             ];
         }
         wp_reset_postdata();
@@ -861,7 +861,7 @@ function populate_acf_select_route_area_field($field)
 
     if (!empty($data['data']) && is_array($data['data'])) {
         foreach ($data['data'] as $item) {
-            if (isset($item['level']) && $item['categoryType'] == 1)
+            if (isset($item['level']) && $item['level'] == 1)
                 $field['choices'][$item['_id']] = $item['name'];
         }
     }
@@ -5055,6 +5055,7 @@ add_action('wp_ajax_nopriv_check_add_coupon', 'handle_check_add_coupon');
 
 function handle_check_add_coupon()
 {
+    global $wpdb;
     $journey_code = !empty($_POST['ticket_code']) ? sanitize_text_field($_POST['ticket_code']) : null;
     $coupon_code  = !empty($_POST['coupon']) ? sanitize_text_field($_POST['coupon']) : null;
 
@@ -5062,6 +5063,7 @@ function handle_check_add_coupon()
         wp_send_json_error('Đã có lỗi xảy ra');
     }
 
+    // 1. Tìm tất cả vé thuộc journey group
     $existing_post = get_posts([
         'post_type'      => 'book-ticket',
         'post_status'    => 'publish',
@@ -5079,47 +5081,225 @@ function handle_check_add_coupon()
         wp_send_json_error('Mã vé không tồn tại!');
     }
 
-    $count_success      = 0;
-    $total_final_price  = 0;
-    $errors             = [];
+    // 2. Tìm coupon trong WP post type 'coupon'
+    $coupon = get_posts([
+        'post_type'   => 'coupon',
+        'title'       => $coupon_code,
+        'numberposts' => 1,
+        'post_status' => 'publish',
+    ]);
 
+    if (empty($coupon)) {
+        wp_send_json_error('Mã giảm giá không hợp lệ');
+    }
+
+    $coupon_id  = $coupon[0]->ID;
+    $table_name = $wpdb->prefix . 'ticket_coupon';
+
+    // 3. Kiểm tra không cộng dồn – vé đã áp dụng mã khác chưa
     foreach ($existing_post as $p) {
-        $booking_code = get_field('booking_codes', $p->ID);
-        // $partner_id   = get_field('partner_id', $p->ID);
-
-        $url = '/booking/vexere/' . $booking_code . '/coupon';
-        $response = call_api_v2($url, 'PUT', [
-            'coupon'       => $coupon_code,
-        ]);
-
-        if (is_wp_error($response)) {
-            wp_send_json_error($response->get_error_messages());
-        }
-
-        $res_body = json_decode(wp_remote_retrieve_body($response), true);
-        if (isset($res_body['data']['message']) && $res_body['data']['message'] === 'Success') {
-            $count_success++;
-            $res_data = $res_body['data']['data'];
-
-            $final_price = isset($res_data['final_price']) ? (float)$res_data['final_price'] : 0;
-
-            update_field('total_price', $final_price, $p->ID);
-            $total_final_price += $final_price;
-        } else {
-            $errors[] = $res_body['data']['error']['message'] ?? 'Apply coupon thất bại (không rõ lý do)';
+        $existing_coupon = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE ticket_id = %d AND (status = 'pending' OR status = 'completed')",
+            $p->ID
+        ));
+        if ($existing_coupon) {
+            wp_send_json_error('Đơn hàng này đã được áp dụng mã giảm giá khác');
         }
     }
 
-    if ($count_success > 0) {
-        wp_send_json_success([
-            'total_price'   => $total_final_price,
-            'message'       => 'Áp dụng mã giảm giá thành công!',
-            'success_count' => $count_success,
-            'errors'        => $errors,
-        ]);
+    // 4. Lấy cấu hình coupon
+    $coupon_routes          = get_field('coupon_route', $coupon_id);
+    $coupon_date            = get_field('coupon_date', $coupon_id);
+    $coupon_type            = get_field('coupon_type', $coupon_id);
+    $coupon_value           = floatval(get_field('coupon_value', $coupon_id));
+    $coupon_limit           = intval(get_field('coupon_limit', $coupon_id));
+    $coupon_by_seat         = intval(get_field('coupon_by_seat', $coupon_id));
+    $coupon_quantity        = intval(get_field('coupon_quantity', $coupon_id));
+    $coupon_start_datetime  = strval(get_field('coupon_start_datetime', $coupon_id));
+    $coupon_end_datetime    = strval(get_field('coupon_end_datetime', $coupon_id));
+    $max_discount           = intval(get_field('max_discount', $coupon_id));
+
+    // 5. Kiểm tra thời gian hiệu lực
+    $current_datetime = current_time('Y-m-d H:i:s');
+    if (!empty($coupon_start_datetime) && !empty($coupon_end_datetime)) {
+        if ($current_datetime < $coupon_start_datetime || $current_datetime > $coupon_end_datetime) {
+            $start_fmt = date('H:i d/m/Y', strtotime($coupon_start_datetime));
+            $end_fmt   = date('H:i d/m/Y', strtotime($coupon_end_datetime));
+            wp_send_json_error(sprintf('Mã giảm giá chỉ có hiệu lực từ %s đến %s', $start_fmt, $end_fmt));
+        }
     }
 
-    wp_send_json_error('Áp dụng mã giảm giá không thành công! Vui lòng liên hệ tổng đài Dailyve 1900 0155 để biết thêm thông tin chi tiết');
+    // 6. Kiểm tra số lượng mã còn lại trong ngày (Chỉ đếm completed)
+    if (!empty($coupon_quantity) && intval($coupon_quantity) > 0) {
+        $used_total = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE coupon_id = %d AND status = 'completed' AND DATE(created_at) = CURDATE()",
+            $coupon_id
+        ));
+        if (intval($used_total) >= intval($coupon_quantity)) {
+            wp_send_json_error('Mã giảm giá đã hết lượt sử dụng trong ngày');
+        }
+    }
+
+    // 7. Kiểm tra TỔNG số lượng mã còn lại (Chỉ đếm completed)
+    $total_limit = intval(get_post_meta($coupon_id, 'coupon_total_quantity', true));
+    if ($total_limit > 0) {
+        $used_total_all = intval($wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE coupon_id = %d AND status = 'completed'",
+            $coupon_id
+        )));
+
+        if ($used_total_all >= $total_limit) {
+            wp_send_json_error('Mã giảm giá đã hết lượt sử dụng');
+        }
+    }
+
+    // Lấy thông tin từ vé đầu tiên để validate
+    $first_ticket   = $existing_post[0];
+    $customer_phone = strval(get_post_meta($first_ticket->ID, 'phone', true));
+    $from           = strval(get_post_meta($first_ticket->ID, 'search_from', true));
+    $to             = strval(get_post_meta($first_ticket->ID, 'search_to', true));
+
+    // 7. Kiểm tra giới hạn sử dụng mỗi user (theo phone)
+    if ($coupon_limit > 0) {
+        $used_count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE coupon_id = %d AND phone = %s AND status = 'completed'",
+            $coupon_id,
+            $customer_phone
+        ));
+        if ($used_count >= $coupon_limit) {
+            wp_send_json_error('Bạn đã sử dụng mã giảm giá này quá số lần cho phép');
+        }
+    }
+
+    // 8. Kiểm tra tuyến đường (map partner ID -> _id)
+    if (!empty($coupon_routes)) {
+        $partner_id = strval(get_post_meta($first_ticket->ID, 'partner_id', true));
+        $response = wp_remote_get(rest_url('api/v1/state-city-new?api_key=' . API_KEY_CLIENT));
+        if (!is_wp_error($response)) {
+            $data = json_decode(wp_remote_retrieve_body($response), true);
+            if (!empty($data['data']) && is_array($data['data'])) {
+                $newFrom = $from;
+                $newTo = $to;
+                foreach ($data['data'] as $item) {
+                    if (!empty($item['mappings']) && is_array($item['mappings'])) {
+                        foreach ($item['mappings'] as $mapping) {
+                            if ($mapping['system'] == $partner_id) {
+                                if (strval($mapping['externalId']) === $from || strval($mapping['externalCode'] ?? '') === $from) {
+                                    $newFrom = $item['_id'];
+                                }
+                                if (strval($mapping['externalId']) === $to || strval($mapping['externalCode'] ?? '') === $to) {
+                                    $newTo = $item['_id'];
+                                }
+                            }
+                        }
+                    }
+                }
+                $from = $newFrom;
+                $to = $newTo;
+            }
+        }
+
+        $isValidRoute = false;
+        foreach ($coupon_routes as $route) {
+            if ($route['coupon_route_departure']['value'] == $from && $route['coupon_route_destination']['value'] == $to) {
+                $isValidRoute = true;
+                break;
+            }
+        }
+        if (!$isValidRoute) {
+            wp_send_json_error('Mã giảm giá không áp dụng cho tuyến đường này');
+        }
+    }
+
+    // 9. Kiểm tra ngày trong tuần
+    $current_day       = date('N');
+    $coupon_date_array = is_array($coupon_date) ? $coupon_date : [];
+    if (!empty($coupon_date_array) && !in_array($current_day, $coupon_date_array)) {
+        wp_send_json_error('Mã giảm giá không áp dụng cho ngày này');
+    }
+
+    // 10. Kiểm tra số ghế tối thiểu
+    if ($coupon_by_seat > 0) {
+        $total_seats = 0;
+        foreach ($existing_post as $p) {
+            $seat = get_post_meta($p->ID, 'seat', true);
+            if (!empty($seat)) {
+                $total_seats += count(array_filter(explode(',', $seat)));
+            }
+        }
+        if ($total_seats < $coupon_by_seat) {
+            wp_send_json_error('Cần đặt tối thiểu ' . $coupon_by_seat . ' ghế để sử dụng mã giảm giá này');
+        }
+    }
+
+    // 11. Tính tổng giá gốc và giảm giá
+    $total_original = 0;
+    foreach ($existing_post as $p) {
+        $orig = floatval(get_post_meta($p->ID, 'original_price', true));
+        if (empty($orig)) {
+            $orig = floatval(get_post_meta($p->ID, 'total_price', true));
+        }
+        $total_original += $orig;
+    }
+
+    $discount_amount = 0;
+    if ($coupon_type === 'percent') {
+        $discount_amount = $total_original * ($coupon_value / 100);
+    } else {
+        $discount_amount = $coupon_value;
+    }
+
+    if ($max_discount > 0 && $discount_amount > $max_discount) {
+        $discount_amount = $max_discount;
+    }
+
+    if ($discount_amount > $total_original) {
+        $discount_amount = $total_original;
+    }
+
+    $new_total = $total_original - $discount_amount;
+
+    // 12. Cập nhật vé và lưu ticket_coupon
+    $payment_content = '';
+    foreach ($existing_post as $p) {
+        $pid  = $p->ID;
+        $orig = floatval(get_post_meta($pid, 'original_price', true));
+        if (empty($orig)) {
+            $orig = floatval(get_post_meta($pid, 'total_price', true));
+            update_post_meta($pid, 'original_price', $orig);
+        }
+
+        // Phân bổ giảm giá theo tỷ lệ giá mỗi vé
+        $ticket_discount  = ($total_original > 0) ? ($orig / $total_original) * $discount_amount : 0;
+        $ticket_new_price = $orig - $ticket_discount;
+
+        update_post_meta($pid, 'total_price', $ticket_new_price);
+        update_post_meta($pid, 'discount_type', $coupon_type);
+        update_post_meta($pid, 'discount', $coupon_value);
+
+        if (empty($payment_content)) {
+            $payment_content = strval(get_post_meta($pid, 'payment_content', true));
+        }
+
+        // Xóa pending coupon cũ (nếu có) rồi insert mới
+        $wpdb->delete($table_name, ['ticket_id' => $pid, 'status' => 'pending'], ['%d', '%s']);
+        $wpdb->insert($table_name, [
+            'coupon_id'  => $coupon_id,
+            'phone'      => $customer_phone,
+            'ticket_id'  => $pid,
+            'status'     => 'pending',
+            'code'       => $coupon_code,
+            'created_at' => current_time('mysql'),
+            'updated_at' => current_time('mysql'),
+        ], ['%d', '%s', '%d', '%s', '%s', '%s', '%s']);
+    }
+
+    wp_send_json_success([
+        'total_price'     => $new_total,
+        'payment_content' => $payment_content,
+        'message'         => 'Áp dụng mã giảm giá thành công!',
+        'discount_amount' => $discount_amount,
+    ]);
 }
 
 function confirm_coupon_usage($ticket_id)
@@ -5538,15 +5718,16 @@ function get_valid_coupons($request)
             $query->the_post();
             $post_id = get_the_ID();
 
-            $coupon_routes = get_field('coupon_route', $coupon_id);
-            $coupon_date = get_field('coupon_date', $coupon_id);
-            $coupon_type = get_field('coupon_type', $coupon_id);
-            $coupon_value = floatval(get_field('coupon_value', $coupon_id));
-            $coupon_limit = intval(get_field('coupon_limit', $coupon_id));
-            $coupon_by_seat = intval(get_field('coupon_by_seat', $coupon_id));
-            $coupon_quantity = intval(get_field('coupon_quantity', $coupon_id));
-            $coupon_start_datetime = strval(get_field('coupon_start_datetime', $coupon_id));
-            $coupon_end_datetime = strval(get_field('coupon_end_datetime', $coupon_id));
+            $coupon_routes = get_field('coupon_route', $post_id);
+            $coupon_date = get_field('coupon_date', $post_id);
+            $coupon_type = get_field('coupon_type', $post_id);
+            $coupon_value = floatval(get_field('coupon_value', $post_id));
+            $coupon_limit = intval(get_field('coupon_limit', $post_id));
+            $coupon_by_seat = intval(get_field('coupon_by_seat', $post_id));
+            $coupon_quantity = intval(get_field('coupon_quantity', $post_id));
+            $coupon_total_quantity = intval(get_field('coupon_total_quantity', $post_id));
+            $coupon_start_datetime = strval(get_field('coupon_start_datetime', $post_id));
+            $coupon_end_datetime = strval(get_field('coupon_end_datetime', $post_id));
 
             $coupons[] = [
                 'id' => $post_id,
@@ -5563,6 +5744,7 @@ function get_valid_coupons($request)
                 'coupon_limit' => $coupon_limit,
                 'coupon_by_seat' => $coupon_by_seat,
                 'coupon_quantity' => $coupon_quantity,
+                'coupon_total_quantity' => $coupon_total_quantity,
                 'coupon_start_datetime' => $coupon_start_datetime,
                 'coupon_end_datetime' => $coupon_end_datetime,
                 'created_at' => get_the_date('Y-m-d H:i:s'),
@@ -5587,7 +5769,6 @@ function get_valid_coupons($request)
 function api_check_add_coupon($request)
 {
     global $wpdb;
-
     $table_name = $wpdb->prefix . 'ticket_coupon';
     $coupon_code = $request->get_param('coupon');
     $token = $request->get_param('token');
@@ -5650,6 +5831,7 @@ function api_check_add_coupon($request)
     $coupon_limit = intval(get_field('coupon_limit', $coupon_id));
     $coupon_by_seat = intval(get_field('coupon_by_seat', $coupon_id));
     $coupon_quantity = intval(get_field('coupon_quantity', $coupon_id));
+    $coupon_total_quantity = intval(get_field('coupon_total_quantity', $coupon_id));
     $coupon_start_datetime = strval(get_field('coupon_start_datetime', $coupon_id));
     $coupon_end_datetime = strval(get_field('coupon_end_datetime', $coupon_id));
     $is_for_new_users = filter_var(get_field('is_for_new_users', $coupon_id), FILTER_VALIDATE_BOOLEAN);
@@ -5657,54 +5839,8 @@ function api_check_add_coupon($request)
     $max_discount = intval(get_field('max_discount', $coupon_id));
     $use_coupon = get_field('use_coupon', $coupon_id);
 
-    $responseAuth = wp_remote_get(BMS_URL . '/v1/customer/check-token', [
-        'headers' => [
-            'Authorization' => 'Bearer ' . $token,
-            'Content-Type' => 'application/json',
-        ],
-    ]);
+    // Đã loại bỏ kiểm tra App và Token theo yêu cầu
 
-    $body = json_decode(wp_remote_retrieve_body($responseAuth), true);
-    if (!is_wp_error($responseAuth) && wp_remote_retrieve_response_code($responseAuth) === 200) {
-        $is_devices = filter_var($body['data']['is_devices'], FILTER_VALIDATE_BOOLEAN);
-        $used_app_first_promo = filter_var($body['data']['used_app_first_promo'], FILTER_VALIDATE_BOOLEAN);
-        $platform = $is_devices == false ? 'web' : 'app';
-        $created_at = $body['data']['created_at'];
-        if (!empty($valid_days_after_signup) && $valid_days_after_signup > 0) {
-            $current_datetime = current_time('Y-m-d H:i:s');
-            $formatted_created_at = date('Y-m-d H:i:s', strtotime($created_at));
-            $created_at_plus_7 = date('Y-m-d H:i:s', strtotime($formatted_created_at . " +{$valid_days_after_signup} days"));
-
-            if (strtotime($current_datetime) > strtotime($created_at_plus_7)) {
-                return new WP_REST_Response(array(
-                    'success' => false,
-                    'message' => 'Mã giảm giá đã hết hạn sử dụng',
-                    // 'current' => strtotime($current_datetime),
-                    // '7' => strtotime($formatted_created_at)
-                ), 400);
-            }
-        }
-
-        if ($used_app_first_promo == true && $coupon_id == 15106) {
-            return new WP_REST_Response(array(
-                'success' => false,
-                'message' => 'Mã giảm giá này chỉ áp dụng cho lần đầu cài đặt app',
-            ), 400);
-        }
-    } else {
-        return new WP_REST_Response(array(
-            'success' => false,
-            'message' => 'Lỗi xác thực'
-        ), 403);
-    }
-
-    if (!in_array($platform, $use_coupon)) {
-        return new WP_REST_Response(array(
-            'success' => false,
-            'message' => 'Khách hàng phải sử dụng app mới có thể sử dụng mã giảm giá',
-            'data' => $is_devices
-        ), 400);
-    }
 
     // Kiểm tra thời gian hiệu lực của mã giảm giá
     $current_datetime = current_time('Y-m-d H:i:s');
@@ -5724,6 +5860,7 @@ function api_check_add_coupon($request)
     $original_price = floatval(get_field('original_price', $ticket_id) ?? $ticket_total);
     $payment_content = strval(get_field('payment_content', $ticket_id) ?? '');
     $customer_phone = strval(get_field('phone', $ticket_id) ?? '');
+    $partner_id = strval(get_field('partner_id', $ticket_id) ?? '');
     $from = strval(get_field('search_from', $ticket_id));
     $to = strval(get_field('search_to', $ticket_id));
     $seat_depart = strval(get_field('seat_depart', $ticket_id) ?? '');
@@ -5734,15 +5871,24 @@ function api_check_add_coupon($request)
     if (!is_wp_error($response)) {
         $data = json_decode(wp_remote_retrieve_body($response), true);
         if (!empty($data['data']) && is_array($data['data'])) {
-            $stateIds = array_column($data['data'], 'stateId', 'newKey');
-
-            if (isset($stateIds[$from])) {
-                $from = $stateIds[$from];
+            $newFrom = $from;
+            $newTo = $to;
+            foreach ($data['data'] as $item) {
+                if (!empty($item['mappings']) && is_array($item['mappings'])) {
+                    foreach ($item['mappings'] as $mapping) {
+                        if ($mapping['system'] == $partner_id) {
+                            if (strval($mapping['externalId']) === $from || strval($mapping['externalCode'] ?? '') === $from) {
+                                $newFrom = $item['_id'];
+                            }
+                            if (strval($mapping['externalId']) === $to || strval($mapping['externalCode'] ?? '') === $to) {
+                                $newTo = $item['_id'];
+                            }
+                        }
+                    }
+                }
             }
-
-            if (isset($stateIds[$to])) {
-                $to = $stateIds[$to];
-            }
+            $from = $newFrom;
+            $to = $newTo;
         }
     } else {
         return new WP_REST_Response(array(
@@ -5751,17 +5897,34 @@ function api_check_add_coupon($request)
         ), 500);
     }
 
-    // Kiểm tra số lượng mã còn lại
-    if (!empty($coupon_quantity) && $coupon_quantity > 0) {
+    // Kiểm tra số lượng mã còn lại (Chỉ đếm completed)
+    if (!empty($coupon_quantity) && intval($coupon_quantity) > 0) {
         $used_total = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM $table_name WHERE coupon_id = %d AND status = 'completed' AND DATE(created_at) = CURDATE()",
             $coupon_id
         ));
 
-        if ($used_total >= $coupon_quantity) {
+        if (intval($used_total) >= intval($coupon_quantity)) {
             return new WP_REST_Response(array(
                 'success' => false,
-                'message' => 'Mã giảm giá đã hết lượt sử dụng'
+                'message' => 'Mã giảm giá đã hết lượt sử dụng trong ngày'
+            ), 400);
+        }
+    }
+
+    // Kiểm tra TỔNG số lượng mã còn lại (Chỉ đếm completed)
+    $total_limit = $coupon_total_quantity;
+
+    if ($total_limit > 0) {
+        $used_total_all = intval($wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE coupon_id = %d AND status = 'completed'",
+            $coupon_id
+        )));
+
+        if ($used_total_all >= $total_limit) {
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => 'Mã giảm giá đã hết lượt sử dụng (ID:' . $coupon_id . ' - Đã dùng: ' . $used_total_all . '/' . $total_limit . ')'
             ), 400);
         }
     }
@@ -6108,4 +6271,74 @@ function ams_get_bulk_company_data($items)
     }
 
     return $company_data_map;
+}
+
+// Thêm Meta Box vào trang edit book-ticket để xem thông tin coupon
+add_action('add_meta_boxes', 'dailyve_add_coupon_info_meta_box');
+function dailyve_add_coupon_info_meta_box()
+{
+    add_meta_box(
+        'dailyve_coupon_info',           // ID của meta box
+        'Thông tin Mã giảm giá',          // Tiêu đề
+        'dailyve_display_coupon_info',    // Hàm hiển thị nội dung
+        'book-ticket',                   // Post type áp dụng
+        'side',                          // Vị trí (cột bên phải)
+        'high'                           // Độ ưu tiên
+    );
+}
+
+function dailyve_display_coupon_info($post)
+{
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'ticket_coupon';
+
+    // Truy vấn thông tin coupon từ bảng custom
+    $coupon_info = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE ticket_id = %d ORDER BY created_at DESC LIMIT 1",
+        $post->ID
+    ));
+
+    if ($coupon_info) {
+        echo '<div style="padding: 10px 0;">';
+        echo '<p><strong>Mã code:</strong> <span style="color: #43a72f; font-weight: bold; font-size: 16px;">' . esc_html($coupon_info->code) . '</span></p>';
+        echo '<p><strong>Trạng thái:</strong> ' . ($coupon_info->status === 'completed' ? '<span style="color: blue;">Đã hoàn thành</span>' : '<span style="color: orange;">Đang chờ (Pending)</span>') . '</p>';
+        echo '<p><strong>Ngày áp dụng:</strong> ' . esc_html(date('d/m/Y H:i', strtotime($coupon_info->created_at))) . '</p>';
+        echo '<hr>';
+        echo '<p><a href="' . get_edit_post_link($coupon_info->coupon_id) . '" target="_blank">Xem chi tiết cấu hình mã →</a></p>';
+        echo '</div>';
+    } else {
+        echo '<p>Vé này chưa áp dụng mã giảm giá nào.</p>';
+    }
+}
+
+/**
+ * Tự động chuyển trạng thái Coupon sang Completed khi vé được chuyển sang trạng thái Đã thanh toán (status = 2)
+ */
+add_action('updated_post_meta', 'dailyve_sync_coupon_status_on_payment', 10, 4);
+add_action('added_post_meta', 'dailyve_sync_coupon_status_on_payment', 10, 4);
+
+function dailyve_sync_coupon_status_on_payment($meta_id, $object_id, $meta_key, $meta_value)
+{
+    // Nếu key là payment_status và giá trị mới là 2 (Đã thanh toán)
+    if ($meta_key === 'payment_status' && (int)$meta_value === 2) {
+        if (get_post_type($object_id) === 'book-ticket') {
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'ticket_coupon';
+
+            // Cập nhật trạng thái từ pending sang completed cho vé này
+            $wpdb->update(
+                $table_name,
+                array(
+                    'status' => 'completed',
+                    'updated_at' => current_time('mysql')
+                ),
+                array(
+                    'ticket_id' => $object_id,
+                    'status' => 'pending'
+                ),
+                array('%s', '%s'),
+                array('%d', '%s')
+            );
+        }
+    }
 }

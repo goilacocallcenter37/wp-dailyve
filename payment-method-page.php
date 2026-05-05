@@ -320,7 +320,7 @@ if (!empty($existing_post)) {
                 <?php } ?>
             </div>
             <div class="payment_content_right">
-                <?php if ($displayTickets[0]['partner_id'] == 'vexere') { ?>
+                <?php if ((int) $paymentStatus === 1) { ?>
                     <div class="payment_body_container" style="padding: 20px;">
                         <div class="ticket_info_body">
                             <div class="flex items-center justify-content-center" style="margin-bottom: 4px; gap: 10px;">

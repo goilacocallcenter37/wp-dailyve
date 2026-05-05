@@ -1,9 +1,8 @@
 <?php
-// Tách các cấu hình ACF Local Fields từ functions.php
-
 // Add ACF Fields for Bus Utility Taxonomy
 add_action('acf/init', 'dailyve_register_bus_utility_acf_fields');
-function dailyve_register_bus_utility_acf_fields() {
+function dailyve_register_bus_utility_acf_fields()
+{
     if (!function_exists('acf_add_local_field_group')) {
         return;
     }

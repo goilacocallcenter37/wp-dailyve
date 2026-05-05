@@ -1,9 +1,8 @@
 <?php
-// Tách các đăng ký Taxonomy từ functions.php
-
 // Register Bus Utility Taxonomy
 add_action('init', 'dailyve_register_bus_utility_taxonomy');
-function dailyve_register_bus_utility_taxonomy() {
+function dailyve_register_bus_utility_taxonomy()
+{
     $labels = array(
         'name'              => 'Tiện ích nhà xe',
         'singular_name'     => 'Tiện ích',

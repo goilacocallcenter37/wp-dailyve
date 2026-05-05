@@ -2515,6 +2515,32 @@ function render_ticket_column($column, $post_id)
 
         printf('<span style="color: %s; font-weight: bold;">%s</span>', $status_color, $status_label);
     }
+
+    if ($column === 'route_name') {
+        $route = get_post_meta($post_id, 'routeName', true);
+        echo esc_html($route);
+    }
+
+    if ($column === 'total_price') {
+        $price = get_post_meta($post_id, 'total_price', true);
+        echo $price ? number_format($price, 0, ',', '.') . 'đ' : '0đ';
+    }
+
+    if ($column === 'applied_coupon') {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'ticket_coupon';
+        $coupon_info = $wpdb->get_row($wpdb->prepare(
+            "SELECT code, status FROM $table_name WHERE ticket_id = %d ORDER BY created_at DESC LIMIT 1",
+            $post_id
+        ));
+        if ($coupon_info) {
+            $bg = $coupon_info->status === 'completed' ? '#e7f5ea' : '#fff7ed';
+            $color = $coupon_info->status === 'completed' ? '#15803d' : '#ea580c';
+            echo '<span style="background: ' . $bg . '; color: ' . $color . '; padding: 2px 6px; border-radius: 4px; font-weight: bold; border: 1px solid ' . $color . '20;">' . esc_html($coupon_info->code) . '</span>';
+        } else {
+            echo '<span style="color: #999;">-</span>';
+        }
+    }
 }
 
 add_filter('manage_edit-book-ticket_columns', 'add_fullname_column');
@@ -2527,6 +2553,9 @@ function add_fullname_column($columns)
         if ($key === 'date') {
             $new_columns['full_name'] = __('Full Name');
             $new_columns['phone'] = __('Phone');
+            $new_columns['route_name'] = __('Tuyến đường');
+            $new_columns['total_price'] = __('Giá vé');
+            $new_columns['applied_coupon'] = __('Mã giảm giá');
             $new_columns['partner_id'] = __('Partner ID');
             $new_columns['ticket_status'] = __('Trạng thái');
         }

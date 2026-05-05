@@ -79,6 +79,7 @@ $vexere_ids = array_column($companies_list, 'vexere_company_id');
 
 // 3. Truy vấn danh sách post type là page có trang cha ID là 15764 và custom field company_id
 $company_pages = [];
+$company_pages_query = null; // Khởi tạo để tránh lỗi null
 if (!empty($vexere_ids)) {
   $args = [
     'post_type'      => 'page',
@@ -492,7 +493,7 @@ foreach ($company_pages as $page) {
   </div>
 
   <div class="dailyve-company-ui__list">
-    <?php if ($company_pages_query->have_posts()) : $index = 0;
+    <?php if ($company_pages_query && $company_pages_query->have_posts()) : $index = 0;
       while ($company_pages_query->have_posts()) : $company_pages_query->the_post();
         $p_id = get_the_ID();
         $company_name = get_the_title();
