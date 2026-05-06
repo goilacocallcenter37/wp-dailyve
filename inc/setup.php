@@ -1,5 +1,4 @@
 <?php
-// Tách các cài d?t co b?n và scripts t? functions.php
 // Add custom Theme Functions here
 add_action('wp_enqueue_scripts', 'custom_scripts', 10);
 
@@ -96,4 +95,3 @@ add_action('wp_head', function () {
     echo '<link rel="preload" as="font" href="/wp-content/themes/flatsome-child/assets/fonts/Diavlo/Diavlo-Medium.woff2" type="font/woff2" crossorigin="anonymous">';
     echo '<link rel="preload" as="font" href="/wp-content/themes/flatsome-child/assets/fonts/OpenSans/OpenSans-Light.woff2" type="font/woff2" crossorigin="anonymous">';
 });
-

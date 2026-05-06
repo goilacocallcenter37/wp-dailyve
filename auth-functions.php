@@ -1249,8 +1249,6 @@ function auth_extract_seat_ids_from_post($post_id)
     return array_values(array_filter(array_map('strval', $seat_ids)));
 }
 
-
-
 function auth_parse_goopay_booking_info(array $payload, $is_holiday = null)
 {
     $tickets = (isset($payload['tickets']) && is_array($payload['tickets'])) ? $payload['tickets'] : [];
@@ -1282,6 +1280,20 @@ function auth_parse_goopay_booking_info(array $payload, $is_holiday = null)
     $allow_cancel = false;
     $fee_percent = 0;
     $allow_message = '';
+
+    // Kiểm tra thêm điều kiện acceptRefund từ API
+    if (isset($payload['acceptRefund']) && ($payload['acceptRefund'] === false || $payload['acceptRefund'] === 'false')) {
+        return [
+            'allow_cancel'       => false,
+            'allow_message'      => 'Quý khách vui lòng ra quầy vé xe Phương Trang để được hỗ trợ',
+            'cancel_fee'         => 0,
+            'refund_amount'      => 0,
+            'seat_ids'           => [],
+            'status'             => (string)($payload['status'] ?? ''),
+            'status_description' => (string)($payload['statusDescription'] ?? ''),
+            'refund_before'      => '',
+        ];
+    }
 
     if ($diff_minutes < 30) {
         return [
@@ -1487,6 +1499,12 @@ function handle_preview_refund_ticket_ajax()
         $allow_message = 'Vé được phép hủy hoàn tiền.';
         $status_description = (string)($payload['statusDescription'] ?? '');
         $refund_before = '';
+    }
+
+    // Kiểm tra thêm điều kiện acceptRefund từ API (áp dụng cho tất cả partner)
+    if (isset($payload['acceptRefund']) && ($payload['acceptRefund'] === false || $payload['acceptRefund'] === 'false')) {
+        $allow_cancel = false;
+        $allow_message = 'Quý khách vui lòng ra quầy vé xe Phương Trang để được hỗ trợ';
     }
 
     wp_send_json_success([

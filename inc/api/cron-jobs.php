@@ -1,5 +1,4 @@
 <?php
-// Tách các Cron Jobs từ api-functions.php
 
 /**
  * Cron Job: Tự động hủy vé Goopay quá hạn 10 phút.
@@ -86,7 +85,7 @@ function dailyve_sync_company_reviews_cron()
 
         $url = "companies/vexere/$vexere_company_id/reviews?page=1&limit=20";
         if (!function_exists('call_api_v2')) continue;
-        
+
         $response = call_api_v2($url, 'GET');
 
         if (!is_wp_error($response)) {

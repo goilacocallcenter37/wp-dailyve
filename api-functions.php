@@ -740,6 +740,12 @@ add_filter('acf/load_field/name=routes_destination_point', 'populate_acf_select_
 add_filter('acf/load_field/name=routes_departure_point', 'populate_acf_select_route_field');
 add_filter('acf/load_field/name=company_id', 'populate_acf_select_company_field');
 add_filter('acf/load_field/name=coupon_company', 'populate_acf_select_company_field');
+add_filter('acf/load_field/name=vehicle_type_repeater', function ($field) {
+    $source = acf_get_field('vehicle_type');
+    $field['choices'] = $source['choices'];
+
+    return $field;
+});
 
 // function populate_acf_select_route_field($field)
 // {

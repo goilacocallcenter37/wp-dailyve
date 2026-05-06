@@ -1,5 +1,4 @@
 <?php
-// Tách các AJAX functions liên quan d?n Ti?n ích & Chính sách t? api-functions.php
 function handle_get_bus_amenities()
 {
     $trip_code        = isset($_GET['trip_code']) ? sanitize_text_field($_GET['trip_code']) : '';
