@@ -5165,7 +5165,34 @@ function handle_check_add_coupon()
     $from           = strval(get_post_meta($first_ticket->ID, 'search_from', true));
     $to             = strval(get_post_meta($first_ticket->ID, 'search_to', true));
 
-    // 7. Kiểm tra giới hạn sử dụng mỗi user (theo phone)
+    // 7. Kiểm tra danh sách số điện thoại được phép sử dụng (whitelist)
+    $phone_whitelist_raw = get_field('coupon_phone_whitelist', $coupon_id);
+    if (!empty($phone_whitelist_raw)) {
+        // Tách textarea thành mảng, mỗi dòng 1 số điện thoại
+        $phone_whitelist = array_filter(array_map('trim', preg_split('/[\r\n]+/', $phone_whitelist_raw)));
+        // Chuẩn hóa: bỏ ký tự không phải số, giữ lại chỉ số
+        $normalized_whitelist = array_map(function ($phone) {
+            return preg_replace('/[^0-9]/', '', $phone);
+        }, $phone_whitelist);
+        $normalized_customer = preg_replace('/[^0-9]/', '', $customer_phone);
+
+        // Kiểm tra SĐT có trong danh sách whitelist không
+        if (!in_array($normalized_customer, $normalized_whitelist)) {
+            wp_send_json_error('Số điện thoại của bạn không nằm trong danh sách được phép sử dụng mã giảm giá này');
+        }
+
+        // Kiểm tra SĐT này đã sử dụng mã này chưa (mỗi SĐT whitelist chỉ được dùng 1 lần)
+        $whitelist_used = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE coupon_id = %d AND phone = %s AND status = 'completed'",
+            $coupon_id,
+            $customer_phone
+        ));
+        if (intval($whitelist_used) > 0) {
+            wp_send_json_error('Số điện thoại này đã sử dụng mã giảm giá này rồi');
+        }
+    }
+
+    // 8. Kiểm tra giới hạn sử dụng mỗi user (theo phone)
     if ($coupon_limit > 0) {
         $used_count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM $table_name WHERE coupon_id = %d AND phone = %s AND status = 'completed'",
@@ -5978,7 +6005,36 @@ function api_check_add_coupon($request)
         }
     }
 
-    // 4. Kiểm tra giới hạn sử dụng
+    // 4. Kiểm tra danh sách số điện thoại được phép sử dụng (whitelist)
+    $phone_whitelist_raw = get_field('coupon_phone_whitelist', $coupon_id);
+    if (!empty($phone_whitelist_raw)) {
+        $phone_whitelist = array_filter(array_map('trim', preg_split('/[\r\n]+/', $phone_whitelist_raw)));
+        $normalized_whitelist = array_map(function ($phone) {
+            return preg_replace('/[^0-9]/', '', $phone);
+        }, $phone_whitelist);
+        $normalized_customer = preg_replace('/[^0-9]/', '', $customer_phone);
+
+        if (!in_array($normalized_customer, $normalized_whitelist)) {
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => 'Số điện thoại của bạn không nằm trong danh sách được phép sử dụng mã giảm giá này'
+            ), 400);
+        }
+
+        $whitelist_used = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE coupon_id = %d AND phone = %s AND status = 'completed'",
+            $coupon_id,
+            $customer_phone
+        ));
+        if (intval($whitelist_used) > 0) {
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => 'Số điện thoại này đã sử dụng mã giảm giá này rồi'
+            ), 400);
+        }
+    }
+
+    // 5. Kiểm tra giới hạn sử dụng
     if ($coupon_limit > 0) {
         $used_count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM $table_name WHERE coupon_id = %d AND phone = %s AND status = 'completed' AND DATE(created_at) = CURDATE()",

@@ -546,7 +546,7 @@ foreach ($company_pages as $page) {
 
               // 2. Chạy qua từng chi nhánh của phòng vé này
               foreach ($offices as $office) {
-                $is_match = $brand_match; // Nếu brand đã khớp thì tất cả office của nó đều khớp
+                $is_match = $brand_match;
 
                 if (!$is_match) {
                   // Nếu brand không khớp, kiểm tra chi tiết từng chi nhánh
@@ -921,6 +921,26 @@ foreach ($company_pages as $page) {
                       }
                     }]
                   });
+
+                  // FIX LAZY LOAD
+                  $panel.find('img').each(function() {
+
+                    var realSrc =
+                      this.dataset.src ||
+                      this.dataset.lazySrc ||
+                      this.dataset.original;
+
+                    if (realSrc) {
+                      this.src = realSrc;
+                      this.removeAttribute('loading');
+                      this.classList.remove('lazy-load');
+                    }
+
+                  });
+
+                  // refresh slick
+                  $main.slick('setPosition');
+                  $thumbs.slick('setPosition');
                 } else {
                   $main.slick('setPosition');
                   $thumbs.slick('setPosition');
@@ -1087,103 +1107,3 @@ foreach ($company_pages as $page) {
 
   });
 </script>
-
-<?php
-return;
-/*
-/**
- * Template part: Route company list when page has no search query params.
- *
- * Expects:
- * - $route_companies
- */
-
-$today = date_create(date('Y-m-d'));
-date_sub($today, date_interval_create_from_date_string('1 day'));
-$updated_date = date_format($today, 'd-m-Y');
-$route_title = get_the_title();
-?>
-
-<div class="dailyve-route-company-list">
-  <div class="container">
-    <div class="dailyve-route-company-list__header">
-      <div class="dailyve-route-company-list__author">
-        <div class="dailyve-route-company-list__author-logo">
-          <img src="<?= esc_url(home_url('/wp-content/uploads/assets/images/logo-icon-f2.png')); ?>" alt="Dailyve">
-        </div>
-        <div>
-          <div class="dailyve-route-company-list__author-name">Dailyve Team</div>
-          <div class="dailyve-route-company-list__author-date">Ngày cập nhật: <?= esc_html($updated_date); ?></div>
-        </div>
-      </div>
-    </div>
-
-    <?php if (!empty($route_companies)) : ?>
-      <div class="dailyve-route-company-list__summary">
-        Đặt mua vé xe <?= esc_html(mb_strtolower($route_title, 'UTF-8')); ?> chất lượng cao với <?= esc_html(count($route_companies)); ?> nhà xe đang khai thác.
-      </div>
-
-      <div class="dailyve-route-company-list__items">
-        <?php foreach ($route_companies as $company) : ?>
-          <article class="dailyve-route-company-card">
-            <div class="dailyve-route-company-card__main">
-              <div class="dailyve-route-company-card__media">
-                <img
-                  src="<?= esc_url(!empty($company['logo_url']) ? $company['logo_url'] : home_url('/wp-content/uploads/assets/images/logo-icon-f2.png')); ?>"
-                  alt="<?= esc_attr($company['company_name'] ?: 'Nhà xe'); ?>">
-              </div>
-
-              <div class="dailyve-route-company-card__content">
-                <h3 class="dailyve-route-company-card__title">
-                  <?php if (!empty($company['company_url'])) : ?>
-                    <a href="<?= esc_url($company['company_url']); ?>" title="<?= esc_attr($company['company_name']); ?>">
-                      <?= esc_html($company['company_name']); ?>
-                    </a>
-                  <?php else : ?>
-                    <?= esc_html($company['company_name']); ?>
-                  <?php endif; ?>
-                </h3>
-
-                <?php if (!empty($company['route_label'])) : ?>
-                  <div class="dailyve-route-company-card__route"><?= esc_html($company['route_label']); ?></div>
-                <?php endif; ?>
-
-                <?php if ($company['route_total'] !== '') : ?>
-                  <div class="dailyve-route-company-card__meta"><?= esc_html($company['route_total']); ?> chuyến mỗi ngày</div>
-                <?php endif; ?>
-
-                <?php if (!empty($company['schedule_content'])) : ?>
-                  <div class="dailyve-route-company-card__desc">
-                    <?= wp_kses_post($company['schedule_content']); ?>
-                  </div>
-                <?php endif; ?>
-              </div>
-            </div>
-
-            <div class="dailyve-route-company-card__aside">
-              <?php if (!empty($company['price'])) : ?>
-                <div class="dailyve-route-company-card__price">Từ <?= esc_html($company['price']); ?></div>
-              <?php endif; ?>
-
-              <div class="dailyve-route-company-card__actions">
-                <a href="tel:<?= esc_attr(stringToPhone($company['phone'])); ?>" class="dailyve-route-company-card__call">
-                  <?= esc_html($company['phone']); ?>
-                </a>
-
-                <?php if (!empty($company['booking_url'])) : ?>
-                  <a href="<?= esc_url($company['booking_url']); ?>" class="dailyve-route-company-card__book">
-                    Xem giá
-                  </a>
-                <?php endif; ?>
-              </div>
-            </div>
-          </article>
-        <?php endforeach; ?>
-      </div>
-    <?php else : ?>
-      <div class="dailyve-route-company-list__empty">
-        Hiện tại chưa có dữ liệu nhà xe cho tuyến này. Vui lòng thử tìm chuyến theo ngày hoặc liên hệ hotline để được hỗ trợ.
-      </div>
-    <?php endif; ?>
-  </div>
-</div>

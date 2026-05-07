@@ -1281,8 +1281,16 @@ function auth_parse_goopay_booking_info(array $payload, $is_holiday = null)
     $fee_percent = 0;
     $allow_message = '';
 
-    // Kiểm tra thêm điều kiện acceptRefund từ API
-    if (isset($payload['acceptRefund']) && ($payload['acceptRefund'] === false || $payload['acceptRefund'] === 'false')) {
+    // Kiểm tra thêm điều kiện acceptRefund từ API (bao gồm cả trong từng vé)
+    $has_non_refundable = false;
+    foreach ($tickets as $t) {
+        if (isset($t['acceptRefund']) && ($t['acceptRefund'] === false || $t['acceptRefund'] === 'false')) {
+            $has_non_refundable = true;
+            break;
+        }
+    }
+
+    if ($has_non_refundable || (isset($payload['acceptRefund']) && ($payload['acceptRefund'] === false || $payload['acceptRefund'] === 'false'))) {
         return [
             'allow_cancel'       => false,
             'allow_message'      => 'Quý khách vui lòng ra quầy vé xe Phương Trang để được hỗ trợ',
@@ -1501,8 +1509,19 @@ function handle_preview_refund_ticket_ajax()
         $refund_before = '';
     }
 
-    // Kiểm tra thêm điều kiện acceptRefund từ API (áp dụng cho tất cả partner)
-    if (isset($payload['acceptRefund']) && ($payload['acceptRefund'] === false || $payload['acceptRefund'] === 'false')) {
+    // Kiểm tra thêm điều kiện acceptRefund từ API (áp dụng cho tất cả partner, bao gồm cả trong từng vé)
+    $has_non_refundable = false;
+    $tickets_payload = $payload['tickets'] ?? [];
+    if (is_array($tickets_payload)) {
+        foreach ($tickets_payload as $t) {
+            if (isset($t['acceptRefund']) && ($t['acceptRefund'] === false || $t['acceptRefund'] === 'false')) {
+                $has_non_refundable = true;
+                break;
+            }
+        }
+    }
+
+    if ($has_non_refundable || (isset($payload['acceptRefund']) && ($payload['acceptRefund'] === false || $payload['acceptRefund'] === 'false'))) {
         $allow_cancel = false;
         $allow_message = 'Quý khách vui lòng ra quầy vé xe Phương Trang để được hỗ trợ';
     }

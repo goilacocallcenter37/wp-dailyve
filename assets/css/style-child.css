@@ -11030,9 +11030,9 @@ ul.news-content__right {
 
 .dailyve-company-card-v2__image-wrap img {
   width: 100%;
-  height: 160px;
+  height: auto;
   border-radius: 8px;
-  object-fit: cover;
+  object-fit: contain;
   background: #eef2f7;
 }
 
