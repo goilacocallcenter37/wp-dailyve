@@ -161,10 +161,13 @@ function chay_anh_bao_chi()
 }
 add_shortcode('slide_bao_chi', 'chay_anh_bao_chi');
 
-// Include refactored modules
-require_once get_stylesheet_directory() . '/inc/taxonomies.php';
-require_once get_stylesheet_directory() . '/inc/acf-fields.php';
-
+// Include refactored modules (Moved to Dailyve Core Plugin)
+/*
+if ( ! defined( 'DAILYVE_CORE_PATH' ) ) {
+    require_once get_stylesheet_directory() . '/inc/taxonomies.php';
+    require_once get_stylesheet_directory() . '/inc/acf-fields.php';
+}
+*/
 require_once get_stylesheet_directory() . '/inc/setup.php';
 function add_hidden_title_homepage()
 {
@@ -3047,14 +3050,18 @@ function getInitialsWord($string)
     return mb_strtoupper($first . $last);
 }
 
-include 'api-functions.php';
-include 'optimize-company.php';
-include 'auth-functions.php';
+/*
+if ( ! defined( 'DAILYVE_CORE_PATH' ) ) {
+    include 'api-functions.php';
+    include 'optimize-company.php';
+    include 'auth-functions.php';
 
-include 'tour-function.php';
-include 'ctv-functions.php';
+    include 'tour-function.php';
+    include 'ctv-functions.php';
 
-include 'custom-function.php';
+    include 'custom-function.php';
 
-//Duy Functions
-include 'bmd-functions.php';
+    //Duy Functions
+    include 'bmd-functions.php';
+}
+*/
