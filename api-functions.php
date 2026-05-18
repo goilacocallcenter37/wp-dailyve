@@ -94,26 +94,37 @@ function caculatorPriceTotal($format = false)
         $depart_price = 0;
         $return_price = 0;
         $count = 1;
-        $temp = 0;
 
-        foreach ($tickets as $ticket) {
-            foreach ($ticket['selectedSeats'] as $item) {
-                $temp += $item['fare'];
-                $total += $item['fare'];
+        foreach ($tickets as $idx => $ticket) {
+            $ticket_fare_sum = 0;
+            if (!empty($ticket['selectedSeats']) && is_array($ticket['selectedSeats'])) {
+                foreach ($ticket['selectedSeats'] as $item) {
+                    $ticket_fare_sum += (float)($item['fare'] ?? 0);
+                }
             }
-            $pickup_subcharge = $ticket['pickupSurcharge'] ? $ticket['pickupSurcharge'] : 0;
-            $dropoff_subcharge = $ticket['dropoffSurcharge'] ? $ticket['dropoffSurcharge'] : 0;
+            $total += $ticket_fare_sum;
+
+            $pickup_subcharge = 0;
+            $dropoff_subcharge = 0;
+            
+            // Chỉ tính phụ thu vào tổng nếu là loại "Thu ngay" (type 2)
+            if (isset($ticket['pickupPoint']['surcharge_type']) && (int)$ticket['pickupPoint']['surcharge_type'] === 2) {
+                $pickup_subcharge = (float)($ticket['pickupSurcharge'] ?? 0);
+            }
+            if (isset($ticket['dropoffPoint']['surcharge_type']) && (int)$ticket['dropoffPoint']['surcharge_type'] === 2) {
+                $dropoff_subcharge = (float)($ticket['dropoffSurcharge'] ?? 0);
+            }
+
             $total_subcharge += $pickup_subcharge;
             $total_subcharge += $dropoff_subcharge;
 
-            if ($count == 1) {
-                $depart_price = $temp + $pickup_subcharge + $dropoff_subcharge;
-            } else {
-                $return_price = $temp + $pickup_subcharge + $dropoff_subcharge;
-            }
+            $current_leg_price = $ticket_fare_sum + $pickup_subcharge + $dropoff_subcharge;
 
-            $count++;
-            $temp = 0;
+            if ($idx === 0) {
+                $depart_price = $current_leg_price;
+            } elseif ($idx === 1) {
+                $return_price = $current_leg_price;
+            }
         }
 
         $total += $total_subcharge;
@@ -123,10 +134,12 @@ function caculatorPriceTotal($format = false)
             'depart_price' => $depart_price,
             'return_price' => $return_price
         ];
-
-        //return $format ? number_format($total, 0, ",", ".") . 'đ' : $total;
     }
-    return $format ? number_format(0, 0, ",", ".") . 'đ' : 0;
+    return [
+        'total_price' => $format ? '0đ' : 0,
+        'depart_price' => 0,
+        'return_price' => 0
+    ];
 }
 function is_valid_api_key($request)
 {
@@ -4951,13 +4964,29 @@ add_action('wp_ajax_nopriv_save_ticket', 'save_ticket_to_session');
 function save_ticket_to_session()
 {
     check_ajax_referer('ams_vexe', 'nonce');
-    session_start();
+    if (!session_id()) {
+        session_start();
+    }
+    
     $ticket = isset($_POST['ticket']) ? $_POST['ticket'] : null;
+    $legIndex = isset($_POST['legIndex']) ? (int)$_POST['legIndex'] : null;
+
     if ($ticket) {
         if (!isset($_SESSION['tickets'])) {
             $_SESSION['tickets'] = [];
         }
-        $_SESSION['tickets'][] = $ticket;
+
+        if ($legIndex !== null) {
+            // Replace ticket at specific leg index (0 for outbound, 1 for return)
+            $_SESSION['tickets'][$legIndex] = $ticket;
+            // Re-sort to ensure index 0 and 1 are in order
+            ksort($_SESSION['tickets']);
+            // Re-index array to be clean numeric
+            $_SESSION['tickets'] = array_values($_SESSION['tickets']);
+        } else {
+            $_SESSION['tickets'][] = $ticket;
+        }
+
         wp_send_json_success(['message' => 'Vé đã được lưu!', 'tickets' => $_SESSION['tickets']]);
     } else {
         wp_send_json_error(['message' => 'Không có dữ liệu vé để lưu!']);
