@@ -6307,7 +6307,7 @@ function ams_get_bulk_company_data($items)
         $cid = trim($item['company_id'] ?? '');
         if (!$cid) continue;
 
-        $cache_key = 'company_' . $cid . '_v2';
+        $cache_key = 'company_' . $cid . '_v3';
         $cached = get_transient($cache_key);
 
         if ($cached !== false) {
@@ -6343,10 +6343,11 @@ function ams_get_bulk_company_data($items)
                     $data_to_store = [
                         'thumbnail' => $thumb,
                         'gallery'   => $gallery,
+                        'url'       => get_permalink($post->ID),
                     ];
 
                     $company_data_map[$cid] = $data_to_store;
-                    set_transient('company_' . $cid . '_v2', $data_to_store, DAY_IN_SECONDS);
+                    set_transient('company_' . $cid . '_v3', $data_to_store, DAY_IN_SECONDS);
                 }
             }
         }
@@ -6354,9 +6355,9 @@ function ams_get_bulk_company_data($items)
         // Đánh dấu các ID không tìm thấy để tránh query lại nhiều lần
         foreach ($company_ids_to_fetch as $cid) {
             if (!isset($company_data_map[$cid])) {
-                $empty_data = ['thumbnail' => '', 'gallery' => []];
+                $empty_data = ['thumbnail' => '', 'gallery' => [], 'url' => ''];
                 $company_data_map[$cid] = $empty_data;
-                set_transient('company_' . $cid . '_v2', $empty_data, DAY_IN_SECONDS);
+                set_transient('company_' . $cid . '_v3', $empty_data, DAY_IN_SECONDS);
             }
         }
     }
