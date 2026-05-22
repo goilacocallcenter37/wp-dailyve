@@ -12,21 +12,6 @@ function calulateDiscount($price, $discount)
     return 0;
 }
 
-add_action('acf/init', 'my_acf_add_options_page');
-function my_acf_add_options_page()
-{
-    if (! function_exists('acf_add_options_page')) {
-        return;
-    }
-
-    acf_add_options_page(array(
-        'page_title'  => 'Slider Báo Chí',
-        'menu_title'  => 'Slider Báo Chí',
-        'menu_slug'   => 'cai-dat-website',
-        'capability'  => 'edit_posts',
-        'redirect'    => false
-    ));
-}
 
 function ams_decode_points_query($key)
 {
