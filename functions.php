@@ -2375,21 +2375,7 @@ function load_route_data()
             "timeMin" => $arrTime[0] ?? '00:00',
             "timeMax" => $arrTime[1] ?? '23:59',
         );
-        if (!empty($companies)) {
-            $paramsStatistic['companies'] = $companies;
-        }
-        if (!empty($inputArrFrom)) {
-            $paramsStatistic['pickupDistricts'] = implode(',', $inputArrFrom);
-        }
-        if (!empty($inputArrTo)) {
-            $paramsStatistic['dropoffDistricts'] = implode(',', $inputArrTo);
-        }
-        if (!empty($inputNamesFrom)) {
-            $paramsStatistic['pickupNames'] = implode(',', $inputNamesFrom);
-        }
-        if (!empty($inputNamesTo)) {
-            $paramsStatistic['dropoffNames'] = implode(',', $inputNamesTo);
-        }
+
 
         if (is_page(303)) {
             $params['isLimousine'] = true;

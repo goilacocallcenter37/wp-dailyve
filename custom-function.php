@@ -536,15 +536,12 @@ function dailyve_get_bus_booking_view_data($params_input)
 
   if (!empty($companies)) {
     $params['companies'] = $companies;
-    $paramsStatistic['companies'] = $companies;
   }
   if (!empty($inputArrFrom)) {
     $params['pickupDistricts'] = implode(',', $inputArrFrom);
-    $paramsStatistic['pickupDistricts'] = implode(',', $inputArrFrom);
   }
   if (!empty($inputArrTo)) {
     $params['dropoffDistricts'] = implode(',', $inputArrTo);
-    $paramsStatistic['dropoffDistricts'] = implode(',', $inputArrTo);
   }
 
   if (!empty($isLimousine)) {
